@@ -1,0 +1,1428 @@
+> ### Instalar y cargar las librerías necesarias (solo si no están instaladas previamente)
+> if(!require(ggplot2)) install.packages("ggplot2")
+Cargando paquete requerido: ggplot2
+> if(!require(xts)) install.packages("xts")
+Cargando paquete requerido: xts
+Cargando paquete requerido: zoo
+
+Adjuntando el paquete: ‘zoo’
+
+The following objects are masked from ‘package:base’:
+
+    as.Date, as.Date.numeric
+
+> if(!require(readxl)) install.packages("readxl")
+Cargando paquete requerido: readxl
+> if(!require(tseries)) install.packages("tseries")
+Cargando paquete requerido: tseries
+Registered S3 method overwritten by 'quantmod':
+  method            from
+  as.zoo.data.frame zoo 
+
+    ‘tseries’ version: 0.10-56
+
+    ‘tseries’ is a package for time series analysis and computational finance.
+
+    See ‘library(help="tseries")’ for details.
+
+> if(!require(forecast)) install.packages("forecast")
+Cargando paquete requerido: forecast
+> if(!require(urca)) install.packages("urca")
+Cargando paquete requerido: urca
+> if(!require(vars)) install.packages("vars")
+Cargando paquete requerido: vars
+Cargando paquete requerido: MASS
+Cargando paquete requerido: strucchange
+Cargando paquete requerido: sandwich
+Cargando paquete requerido: lmtest
+> library(ggplot2)
+> library(xts)
+> library(readxl)
+> library(tseries)
+> library(forecast)
+> library(urca)
+> library(vars)
+> ####################
+> ### Importacion y manipulacion de los datos
+> ####################
+> ### Cargar los datos desde el archivo
+> file_path <- "C:/Users/santi/Dropbox/Facultad/UBA/Primer trimestre/Econometría I/Segunda parte/TP 2/TP 2 - Datos.xlsx"
+> datos <- read_excel(file_path)
+> ### Convertir los datos a una serie de tiempo (xts)
+> datos$PERIODO <- as.Date(paste0(substr(datos$PERIODO, 1, 4), "-", 
++                                 as.numeric(substr(datos$PERIODO, 6, 6)) * 3 - 2, "-01"))
+> ### Crear objeto xts
+> datos_xts <- xts(datos[,-1], order.by = datos$PERIODO)
+> ### Convertir datos_xts a un formato adecuado para ggplot
+> datos_long <- fortify.zoo(datos_xts, melt = TRUE)
+> ### Renombrar las series para una mejor visualización
+> levels(datos_long$Series) <- c("Importaciones", "Exportaciones", "PIB de Argentina", "PIB de socios comerciales", "Tipo de Cambio Real Multilateral")
+> ####################
+> ### Graficar (punto 1)
+> ####################
+> ### Filtrar datos para el primer gráfico
+> datos_long_1 <- subset(datos_long, Series %in% c("Importaciones", "Exportaciones", "PIB de Argentina"))
+> ### Graficar el primer grupo de series
+> ggplot(datos_long_1, aes(x = Index, y = Value, color = Series)) +
++     geom_line() +
++     facet_wrap(~ Series, scales = "free_y", ncol = 1) +
++     ylab("Valores en millones de pesos de 2004") + 
++     theme_minimal() +
++     theme(
++         legend.position = "none",  # Borrar la leyenda
++         axis.title.x = element_blank(),  # Borrar la leyenda del eje x
++         axis.text.x = element_text(angle = 90, hjust = 1)  # Etiquetas del eje x verticales
++     ) +
++     scale_x_date(date_labels = "%Y", date_breaks = "1 year") +  # Etiquetas del eje x para cada año
++     scale_y_continuous(labels = scales::comma) +  # Escala de números sin notación exponencial
++     facet_wrap(~ Series, scales = "free_y", ncol = 1, labeller = label_value)
+> ### Filtrar datos para el segundo gráfico
+> datos_long_2 <- subset(datos_long, Series %in% c("PIB de socios comerciales", "Tipo de Cambio Real Multilateral"))
+> ### Graficar el segundo grupo de series
+> ggplot(datos_long_2, aes(x = Index, y = Value, color = Series)) +
++     geom_line() +
++     facet_wrap(~ Series, scales = "free_y", ncol = 1) +
++     ylab("Números índice") + 
++     theme_minimal() +
++     theme(
++         legend.position = "none",  # Borrar la leyenda
++         axis.title.x = element_blank(),  # Borrar la leyenda del eje x
++         axis.text.x = element_text(angle = 90, hjust = 1)  # Etiquetas del eje x verticales
++     ) +
++     scale_x_date(date_labels = "%Y", date_breaks = "1 year") +  # Etiquetas del eje x para cada año
++     scale_y_continuous(labels = scales::comma) +  # Escala de números sin notación exponencial
++     facet_wrap(~ Series, scales = "free_y", ncol = 1, labeller = label_value)
+> ####################
+> ### Analisis estadistico. Test de raices unitarias (punto 1)
+> ####################
+> ### Transformar las variables a logaritmos naturales
+> datos$log_IMPO <- log(datos$IMPO)
+> datos$log_EXPO <- log(datos$EXPO)
+> datos$log_PIBARG <- log(datos$PIBARG)
+> datos$log_PIBSOCIOS <- log(datos$PIBSOCIOS)
+> datos$log_TCRM <- log(datos$TCRM)
+> ### Prueba de Dickey-Fuller aumentada (ADF)
+> adf_test <- function(series) {
++     adf.test(series, alternative = "stationary")
++ }
+> ### Aplicar las pruebas ADF a cada serie en logaritmos
+> resultados_adf <- lapply(list(datos$log_IMPO, datos$log_EXPO, datos$log_PIBARG, datos$log_PIBSOCIOS, datos$log_TCRM), adf_test)
+> ### Mostrar resultados de la prueba ADF
+> names(resultados_adf) <- c("log_IMPO", "log_EXPO", "log_PIBARG", "log_PIBSOCIOS", "log_TCRM")
+> resultados_adf
+$log_IMPO
+
+	Augmented Dickey-Fuller Test
+
+data:  series
+Dickey-Fuller = -3.3095, Lag order = 4, p-value = 0.07408
+alternative hypothesis: stationary
+
+
+$log_EXPO
+
+	Augmented Dickey-Fuller Test
+
+data:  series
+Dickey-Fuller = -1.7066, Lag order = 4, p-value = 0.6977
+alternative hypothesis: stationary
+
+
+$log_PIBARG
+
+	Augmented Dickey-Fuller Test
+
+data:  series
+Dickey-Fuller = -2.8224, Lag order = 4, p-value = 0.2366
+alternative hypothesis: stationary
+
+
+$log_PIBSOCIOS
+
+	Augmented Dickey-Fuller Test
+
+data:  series
+Dickey-Fuller = -2.4877, Lag order = 4, p-value = 0.3749
+alternative hypothesis: stationary
+
+
+$log_TCRM
+
+	Augmented Dickey-Fuller Test
+
+data:  series
+Dickey-Fuller = -1.702, Lag order = 4, p-value = 0.6996
+alternative hypothesis: stationary
+
+
+> ####################
+> ### Analisis estadistico. Orden de integracion (punto 1)
+> ####################
+> ### Diferenciar las series y agregar NA al principio para igualar la longitud
+> datos$diff_log_IMPO <- c(NA, diff(datos$log_IMPO, differences = 1))
+> datos$diff_log_EXPO <- c(NA, diff(datos$log_EXPO, differences = 1))
+> datos$diff_log_PIBARG <- c(NA, diff(datos$log_PIBARG, differences = 1))
+> datos$diff_log_PIBSOCIOS <- c(NA, diff(datos$log_PIBSOCIOS, differences = 1))
+> datos$diff_log_TCRM <- c(NA, diff(datos$log_TCRM, differences = 1))
+> ### Prueba de Dickey-Fuller aumentada (ADF) sobre las series diferenciadas
+> adf_test <- function(series) {
++     adf.test(na.omit(series), alternative = "stationary")
++ }
+> ### Aplicar las pruebas ADF a las series diferenciadas
+> resultados_adf_diff <- lapply(list(datos$diff_log_IMPO, datos$diff_log_EXPO, datos$diff_log_PIBARG, datos$diff_log_PIBSOCIOS, datos$diff_log_TCRM), adf_test)
+Avisos:
+1: In adf.test(na.omit(series), alternative = "stationary") :
+  p-value smaller than printed p-value
+2: In adf.test(na.omit(series), alternative = "stationary") :
+  p-value smaller than printed p-value
+3: In adf.test(na.omit(series), alternative = "stationary") :
+  p-value smaller than printed p-value
+4: In adf.test(na.omit(series), alternative = "stationary") :
+  p-value smaller than printed p-value
+> ### Mostrar resultados de la prueba ADF para las series diferenciadas
+> names(resultados_adf_diff) <- c("diff_log_IMPO", "diff_log_EXPO", "diff_log_PIBARG", "diff_log_PIBSOCIOS", "diff_log_TCRM")
+> resultados_adf_diff
+$diff_log_IMPO
+
+	Augmented Dickey-Fuller Test
+
+data:  na.omit(series)
+Dickey-Fuller = -4.7345, Lag order = 4, p-value = 0.01
+alternative hypothesis: stationary
+
+
+$diff_log_EXPO
+
+	Augmented Dickey-Fuller Test
+
+data:  na.omit(series)
+Dickey-Fuller = -3.967, Lag order = 4, p-value = 0.01411
+alternative hypothesis: stationary
+
+
+$diff_log_PIBARG
+
+	Augmented Dickey-Fuller Test
+
+data:  na.omit(series)
+Dickey-Fuller = -4.1586, Lag order = 4, p-value = 0.01
+alternative hypothesis: stationary
+
+
+$diff_log_PIBSOCIOS
+
+	Augmented Dickey-Fuller Test
+
+data:  na.omit(series)
+Dickey-Fuller = -4.5443, Lag order = 4, p-value = 0.01
+alternative hypothesis: stationary
+
+
+$diff_log_TCRM
+
+	Augmented Dickey-Fuller Test
+
+data:  na.omit(series)
+Dickey-Fuller = -4.7541, Lag order = 4, p-value = 0.01
+alternative hypothesis: stationary
+
+
+> ####################
+> ### Analisis estadistico. Estacionalidad (punto 1)
+> ####################
+> ### Convertir las series logarítmicas a objetos de tiempo (ts)
+> log_IMPO_ts <- ts(datos$log_IMPO, start=c(1996, 1), frequency=4)
+> log_EXPO_ts <- ts(datos$log_EXPO, start=c(1996, 1), frequency=4)
+> log_PIBARG_ts <- ts(datos$log_PIBARG, start=c(1996, 1), frequency=4)
+> log_PIBSOCIOS_ts <- ts(datos$log_PIBSOCIOS, start=c(1996, 1), frequency=4)
+> log_TCRM_ts <- ts(datos$log_TCRM, start=c(1996, 1), frequency=4)
+> ### Descomponer las series
+> descomp_IMPO <- decompose(log_IMPO_ts)
+> descomp_EXPO <- decompose(log_EXPO_ts)
+> descomp_PIBARG <- decompose(log_PIBARG_ts)
+> descomp_PIBSOCIOS <- decompose(log_PIBSOCIOS_ts)
+> descomp_TCRM <- decompose(log_TCRM_ts)
+> ### Graficar la descomposición de cada serie
+> plot(descomp_IMPO)
+> plot(descomp_EXPO)
+> plot(descomp_PIBARG)
+> plot(descomp_PIBSOCIOS)
+> plot(descomp_TCRM)
+> # Prueba de Kruskal-Wallis para la estacionalidad
+> kruskal.test(log_IMPO_ts ~ cycle(log_IMPO_ts))
+
+	Kruskal-Wallis rank sum test
+
+data:  log_IMPO_ts by cycle(log_IMPO_ts)
+Kruskal-Wallis chi-squared = 1.3493, df = 3, p-value = 0.7175
+
+> kruskal.test(log_EXPO_ts ~ cycle(log_EXPO_ts))
+
+	Kruskal-Wallis rank sum test
+
+data:  log_EXPO_ts by cycle(log_EXPO_ts)
+Kruskal-Wallis chi-squared = 9.1638, df = 3, p-value = 0.02719
+
+> kruskal.test(log_PIBARG_ts ~ cycle(log_PIBARG_ts))
+
+	Kruskal-Wallis rank sum test
+
+data:  log_PIBARG_ts by cycle(log_PIBARG_ts)
+Kruskal-Wallis chi-squared = 7.5159, df = 3, p-value = 0.05715
+
+> kruskal.test(log_PIBSOCIOS_ts ~ cycle(log_PIBSOCIOS_ts))
+
+	Kruskal-Wallis rank sum test
+
+data:  log_PIBSOCIOS_ts by cycle(log_PIBSOCIOS_ts)
+Kruskal-Wallis chi-squared = 0.8968, df = 3, p-value = 0.8262
+
+> kruskal.test(log_TCRM_ts ~ cycle(log_TCRM_ts))
+
+	Kruskal-Wallis rank sum test
+
+data:  log_TCRM_ts by cycle(log_TCRM_ts)
+Kruskal-Wallis chi-squared = 0.046499, df = 3, p-value = 0.9974
+
+> ####################
+> ### Cointegracion. Engle-Granger. Importaciones (punto 2)
+> ####################
+> ### Regresión de log_IMPO sobre log_PIBARG y log_TCRM
+> reg_impo <- lm(log_IMPO ~ log_PIBARG + log_TCRM, data = datos)
+> ### Obtener los residuos de la regresión
+> resid_impo <- residuals(reg_impo)
+> ### Realizar la prueba ADF sobre los residuos
+> adf_test_resid_impo <- adf.test(resid_impo, alternative = "stationary")
+Aviso:
+In adf.test(resid_impo, alternative = "stationary") :
+  p-value smaller than printed p-value
+> print(adf_test_resid_impo)
+
+	Augmented Dickey-Fuller Test
+
+data:  resid_impo
+Dickey-Fuller = -4.8945, Lag order = 4, p-value = 0.01
+alternative hypothesis: stationary
+
+> ####################
+> ### Cointegracion. Engle-Granger. Exportaciones (punto 2)
+> ####################
+> ### Regresión de log_EXPO sobre log_PIBSOCIOS y log_TCRM
+> reg_expo <- lm(log_EXPO ~ log_PIBSOCIOS + log_TCRM, data = datos)
+> ### Obtener los residuos de la regresión
+> resid_expo <- residuals(reg_expo)
+> ### Realizar la prueba ADF sobre los residuos
+> adf_test_resid_expo <- adf.test(resid_expo, alternative = "stationary")
+> print(adf_test_resid_expo)
+
+	Augmented Dickey-Fuller Test
+
+data:  resid_expo
+Dickey-Fuller = -2.8283, Lag order = 4, p-value = 0.2342
+alternative hypothesis: stationary
+
+> ####################
+> ### Cointegracion. Johansen (punto 2)
+> ####################
+> ### Convertir las series logarítmicas a objetos de tiempo
+> log_IMPO_ts <- ts(datos$log_IMPO, start = c(1996, 1), frequency = 4)
+> log_EXPO_ts <- ts(datos$log_EXPO, start = c(1996, 1), frequency = 4)
+> log_PIBARG_ts <- ts(datos$log_PIBARG, start = c(1996, 1), frequency = 4)
+> log_PIBSOCIOS_ts <- ts(datos$log_PIBSOCIOS, start = c(1996, 1), frequency = 4)
+> log_TCRM_ts <- ts(datos$log_TCRM, start = c(1996, 1), frequency = 4)
+> ### Agrupar las series en un solo objeto
+> datos_impo <- cbind(log_IMPO_ts, log_PIBARG_ts, log_TCRM_ts)
+> datos_expo <- cbind(log_EXPO_ts, log_PIBSOCIOS_ts, log_TCRM_ts)
+> ### Verificar cantidad de rezagos para Importaciones
+> varselect_impo <- VARselect(datos_impo, lag.max = 10, type = "trend")
+> print(varselect_impo)
+$selection
+AIC(n)  HQ(n)  SC(n) FPE(n) 
+     6      5      5      6 
+
+$criteria
+                   1             2             3             4             5             6             7             8
+AIC(n) -1.473568e+01 -1.581140e+01 -1.594661e+01 -1.731103e+01 -1.759694e+01 -1.765905e+01 -1.751678e+01 -1.744326e+01
+HQ(n)  -1.459785e+01 -1.557020e+01 -1.560204e+01 -1.686309e+01 -1.704563e+01 -1.700437e+01 -1.675873e+01 -1.658184e+01
+SC(n)  -1.439321e+01 -1.521208e+01 -1.509044e+01 -1.619801e+01 -1.622707e+01 -1.603233e+01 -1.563321e+01 -1.530285e+01
+FPE(n)  3.985334e-07  1.360406e-07  1.190839e-07  3.054634e-08  2.309181e-08  2.189885e-08  2.556820e-08  2.798824e-08
+                   9            10
+AIC(n) -1.729697e+01 -1.724648e+01
+HQ(n)  -1.633218e+01 -1.617832e+01
+SC(n)  -1.489970e+01 -1.459236e+01
+FPE(n)  3.311786e-08  3.582051e-08
+
+> ### Verificar cantidad de rezagos para Exportaciones
+> varselect_expo <- VARselect(datos_expo, lag.max = 10, type = "trend")
+> print(varselect_expo)
+$selection
+AIC(n)  HQ(n)  SC(n) FPE(n) 
+     5      4      4      5 
+
+$criteria
+                   1             2             3             4             5             6             7             8
+AIC(n) -1.528785e+01 -1.585432e+01 -1.618683e+01 -1.662429e+01 -1.671109e+01 -1.663635e+01 -1.656040e+01 -1.653367e+01
+HQ(n)  -1.515003e+01 -1.561312e+01 -1.584226e+01 -1.617635e+01 -1.615979e+01 -1.598167e+01 -1.580235e+01 -1.567225e+01
+SC(n)  -1.494539e+01 -1.525500e+01 -1.533066e+01 -1.551127e+01 -1.534123e+01 -1.500963e+01 -1.467683e+01 -1.439325e+01
+FPE(n)  2.294339e-07  1.303251e-07  9.365431e-08  6.070215e-08  5.599856e-08  6.089444e-08  6.653504e-08  6.950342e-08
+                   9            10
+AIC(n) -1.644328e+01 -1.647904e+01
+HQ(n)  -1.547849e+01 -1.541088e+01
+SC(n)  -1.404601e+01 -1.382492e+01
+FPE(n)  7.777039e-08  7.716568e-08
+
+> ### Realizar la prueba de Johansen para Importaciones
+> johansen_impo <- ca.jo(datos_impo, type = "trace", ecdet = "trend", K = 6)
+> summary(johansen_impo)
+
+###################### 
+# Johansen-Procedure # 
+###################### 
+
+Test type: trace statistic , with linear trend in cointegration 
+
+Eigenvalues (lambda):
+[1]  2.845849e-01  1.619207e-01  1.023813e-01 -1.110223e-16
+
+Values of teststatistic and critical values of test:
+
+          test 10pct  5pct  1pct
+r <= 2 |  9.72 10.49 12.25 16.26
+r <= 1 | 25.62 22.76 25.32 30.45
+r = 0  | 55.76 39.06 42.44 48.45
+
+Eigenvectors, normalised to first column:
+(These are the cointegration relations)
+
+                 log_IMPO_ts.l6 log_PIBARG_ts.l6 log_TCRM_ts.l6    trend.l6
+log_IMPO_ts.l6      1.000000000      1.000000000    1.000000000  1.00000000
+log_PIBARG_ts.l6   -1.280631152     -3.871089965   -3.225628572 -3.32002321
+log_TCRM_ts.l6      0.444365099      0.405209410   -0.268828654  0.21412449
+trend.l6           -0.006039296      0.008719766    0.006447293  0.02019567
+
+Weights W:
+(This is the loading matrix)
+
+                log_IMPO_ts.l6 log_PIBARG_ts.l6 log_TCRM_ts.l6      trend.l6
+log_IMPO_ts.d      0.004867497       0.02183950    -0.16330940 -2.034866e-13
+log_PIBARG_ts.d    0.064313681       0.06950109    -0.04666807 -7.808553e-14
+log_TCRM_ts.d     -0.295996362       0.18654911     0.08506407  2.816524e-13
+
+> ### Realizar la prueba de Johansen para Exportaciones
+> johansen_expo <- ca.jo(datos_expo, type = "trace", ecdet = "trend", K = 5)
+> summary(johansen_expo)
+
+###################### 
+# Johansen-Procedure # 
+###################### 
+
+Test type: trace statistic , with linear trend in cointegration 
+
+Eigenvalues (lambda):
+[1] 2.541678e-01 1.221594e-01 5.475118e-02 1.033295e-17
+
+Values of teststatistic and critical values of test:
+
+          test 10pct  5pct  1pct
+r <= 2 |  5.12 10.49 12.25 16.26
+r <= 1 | 16.98 22.76 25.32 30.45
+r = 0  | 43.67 39.06 42.44 48.45
+
+Eigenvectors, normalised to first column:
+(These are the cointegration relations)
+
+                    log_EXPO_ts.l5 log_PIBSOCIOS_ts.l5 log_TCRM_ts.l5     trend.l5
+log_EXPO_ts.l5         1.000000000          1.00000000     1.00000000  1.000000000
+log_PIBSOCIOS_ts.l5    1.375593721         -2.58408979     0.30841131 -1.048003066
+log_TCRM_ts.l5        -0.005797124         -1.03787856     4.81108827 -0.246729921
+trend.l5              -0.029607009          0.04065878     0.01160514  0.004762802
+
+Weights W:
+(This is the loading matrix)
+
+                   log_EXPO_ts.l5 log_PIBSOCIOS_ts.l5 log_TCRM_ts.l5      trend.l5
+log_EXPO_ts.d         -0.31720398         -0.06994815   0.0006882347 -8.244310e-14
+log_PIBSOCIOS_ts.d    -0.09898968          0.02449408   0.0031417544 -8.887689e-15
+log_TCRM_ts.d         -0.28283163          0.06484175  -0.0097349121  2.449464e-14
+
+> ####################
+> ### Cointegracion. Johansen. Prueba de normalidad (punto 2)
+> ####################
+> ### Obtener los residuos del modelo de Johansen
+> resid_impo <- residuals(cajorls(johansen_impo, r = 2)$rlm)
+> resid_expo <- residuals(cajorls(johansen_expo, r = 1)$rlm)
+> ### Convertir los residuos a vectores
+> resid_impo_vector <- as.vector(resid_impo)
+> resid_expo_vector <- as.vector(resid_expo)
+> ### Prueba de normalidad de Jarque-Bera
+> jarque_bera_test <- function(residuals) {
++     test <- jarque.bera.test(residuals)
++     return(list(statistic = test$statistic, p.value = test$p.value))
++ }
+> ### Aplicar la prueba de Jarque-Bera a los residuos
+> jb_test_impo <- jarque_bera_test(resid_impo_vector)
+> jb_test_expo <- jarque_bera_test(resid_expo_vector)
+> ### Mostrar los resultados de la prueba de Jarque-Bera
+> print(jb_test_impo)
+$statistic
+X-squared 
+ 2196.138 
+
+$p.value
+[1] 0
+
+> print(jb_test_expo)
+$statistic
+X-squared 
+ 17061.24 
+
+$p.value
+[1] 0
+
+ ####################
+> ### Elasticidades. Engle Granger (punto 3)
+> ####################
+> ### Estimación inicial en niveles para Importaciones
+> reg_impo <- lm(log_IMPO ~ log_PIBARG + log_TCRM, data = datos)
+> summary(reg_impo)
+
+Call:
+lm(formula = log_IMPO ~ log_PIBARG + log_TCRM, data = datos)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-0.37187 -0.10185  0.04038  0.09215  0.22067 
+
+Coefficients:
+             Estimate Std. Error t value Pr(>|t|)    
+(Intercept) -15.88276    1.03823 -15.298  < 2e-16 ***
+log_PIBARG    2.17785    0.07585  28.713  < 2e-16 ***
+log_TCRM     -0.28624    0.04757  -6.017 3.48e-08 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 0.1362 on 93 degrees of freedom
+Multiple R-squared:  0.9035,	Adjusted R-squared:  0.9014 
+F-statistic: 435.2 on 2 and 93 DF,  p-value: < 2.2e-16
+
+> ### Estimación inicial en niveles para Exportaciones
+> reg_expo <- lm(log_EXPO ~ log_PIBSOCIOS + log_TCRM, data = datos)
+> summary(reg_expo)
+
+Call:
+lm(formula = log_EXPO ~ log_PIBSOCIOS + log_TCRM, data = datos)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-0.28648 -0.08051 -0.01160  0.09162  0.28528 
+
+Coefficients:
+              Estimate Std. Error t value Pr(>|t|)    
+(Intercept)    7.98605    0.24519   32.57  < 2e-16 ***
+log_PIBSOCIOS  0.41135    0.02681   15.34  < 2e-16 ***
+log_TCRM       0.33085    0.04302    7.69  1.5e-11 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 0.1232 on 93 degrees of freedom
+Multiple R-squared:  0.7631,	Adjusted R-squared:  0.758 
+F-statistic: 149.8 on 2 and 93 DF,  p-value: < 2.2e-16
+
+> ### Obtener los residuos de las regresiones en niveles
+> resid_impo <- residuals(reg_impo)
+> resid_expo <- residuals(reg_expo)
+> ### Prueba ADF sobre los residuos para confirmar cointegración
+> adf_test_resid_impo <- adf.test(resid_impo)
+Aviso:
+In adf.test(resid_impo) : p-value smaller than printed p-value
+> adf_test_resid_expo <- adf.test(resid_expo)
+> ### Mostrar resultados de la prueba ADF
+> print(adf_test_resid_impo)
+
+	Augmented Dickey-Fuller Test
+
+data:  resid_impo
+Dickey-Fuller = -4.8945, Lag order = 4, p-value = 0.01
+alternative hypothesis: stationary
+
+> print(adf_test_resid_expo)
+
+	Augmented Dickey-Fuller Test
+
+data:  resid_expo
+Dickey-Fuller = -2.8283, Lag order = 4, p-value = 0.2342
+alternative hypothesis: stationary
+
+> ### Diferenciar las series logarítmicas
+> diff_log_IMPO <- diff(datos$log_IMPO)
+> diff_log_PIBARG <- diff(datos$log_PIBARG)
+> diff_log_TCRM <- diff(datos$log_TCRM)
+> diff_log_EXPO <- diff(datos$log_EXPO)
+> diff_log_PIBSOCIOS <- diff(datos$log_PIBSOCIOS)
+> ### Crear un dataframe con las diferencias y los residuos rezagados
+> datos_diff_impo <- data.frame(diff_log_IMPO, diff_log_PIBARG, diff_log_TCRM, resid_impo_lag = lag(resid_impo, -1)[-1])
+> datos_diff_expo <- data.frame(diff_log_EXPO, diff_log_PIBSOCIOS, diff_log_TCRM, resid_expo_lag = lag(resid_expo, -1)[-1])
+> ### Eliminar NA introducidos por el rezago
+> datos_diff_impo <- na.omit(datos_diff_impo)
+> datos_diff_expo <- na.omit(datos_diff_expo)
+> ### Estimar el ECM para Importaciones
+> ecm_impo <- lm(diff_log_IMPO ~ diff_log_PIBARG + diff_log_TCRM + resid_impo_lag, data = datos_diff_impo)
+> summary(ecm_impo)
+
+Call:
+lm(formula = diff_log_IMPO ~ diff_log_PIBARG + diff_log_TCRM + 
+    resid_impo_lag, data = datos_diff_impo)
+
+Residuals:
+      Min        1Q    Median        3Q       Max 
+-0.194639 -0.049265 -0.006183  0.062990  0.183995 
+
+Coefficients:
+                 Estimate Std. Error t value Pr(>|t|)    
+(Intercept)      0.007907   0.008501   0.930  0.35474    
+diff_log_PIBARG  0.403351   0.144772   2.786  0.00649 ** 
+diff_log_TCRM   -0.382432   0.091654  -4.173 6.88e-05 ***
+resid_impo_lag   0.167031   0.082150   2.033  0.04494 *  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 0.08248 on 91 degrees of freedom
+Multiple R-squared:  0.2618,	Adjusted R-squared:  0.2374 
+F-statistic: 10.76 on 3 and 91 DF,  p-value: 4.066e-06
+
+> ### Estimar el ECM para Exportaciones
+> ecm_expo <- lm(diff_log_EXPO ~ diff_log_PIBSOCIOS + diff_log_TCRM + resid_expo_lag, data = datos_diff_expo)
+> summary(ecm_expo)
+
+Call:
+lm(formula = diff_log_EXPO ~ diff_log_PIBSOCIOS + diff_log_TCRM + 
+    resid_expo_lag, data = datos_diff_expo)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-0.18622 -0.06783 -0.01060  0.06939  0.23083 
+
+Coefficients:
+                   Estimate Std. Error t value Pr(>|t|)    
+(Intercept)        -0.00443    0.01037  -0.427 0.670331    
+diff_log_PIBSOCIOS  0.78377    0.21594   3.630 0.000469 ***
+diff_log_TCRM       0.19292    0.10793   1.787 0.077201 .  
+resid_expo_lag      0.28219    0.08959   3.150 0.002211 ** 
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 0.09471 on 91 degrees of freedom
+Multiple R-squared:  0.2571,	Adjusted R-squared:  0.2326 
+F-statistic:  10.5 on 3 and 91 DF,  p-value: 5.368e-06
+
+> ####################
+> ### Elasticidades. Engle Granger. Coeficientes segun Wickens y Breusch (punto 3)
+> ####################
+> ### Obtener coeficientes de largo plazo iniciales
+> coef_long_impo <- coef(reg_impo)
+> coef_long_expo <- coef(reg_expo)
+> ### Obtener coeficientes del ECM
+> coef_ecm_impo <- coef(ecm_impo)
+> coef_ecm_expo <- coef(ecm_expo)
+> ### Recalcular coeficientes del vector de cointegración
+> coef_recalc_impo <- coef_long_impo / (1 - coef_ecm_impo["resid_impo_lag"])
+> coef_recalc_expo <- coef_long_expo / (1 - coef_ecm_expo["resid_expo_lag"])
+> ### Mostrar los coeficientes recalculados
+> print("Coeficientes recalculados para Importaciones:")
+[1] "Coeficientes recalculados para Importaciones:"
+> print(coef_recalc_impo)
+(Intercept)  log_PIBARG    log_TCRM 
+-19.0676559   2.6145653  -0.3436328 
+> print("Coeficientes recalculados para Exportaciones:")
+[1] "Coeficientes recalculados para Exportaciones:"
+> print(coef_recalc_expo)
+  (Intercept) log_PIBSOCIOS      log_TCRM 
+   11.1256370     0.5730723     0.4609125 
+> ####################
+> ### Elasticidades. Metodologia VEC. Largo plazo (punto 3)
+> ####################
+> ###Realizar la Prueba de Johansen:
+> datos_impo <- cbind(log_IMPO_ts, log_PIBARG_ts, log_TCRM_ts)
+> datos_expo <- cbind(log_EXPO_ts, log_PIBSOCIOS_ts, log_TCRM_ts)
+> ### Prueba de Johansen para importaciones
+> johansen_impo <- ca.jo(datos_impo, type = "trace", ecdet = "trend", K = 6)
+> summary(johansen_impo)
+
+###################### 
+# Johansen-Procedure # 
+###################### 
+
+Test type: trace statistic , with linear trend in cointegration 
+
+Eigenvalues (lambda):
+[1]  2.845849e-01  1.619207e-01  1.023813e-01 -1.110223e-16
+
+Values of teststatistic and critical values of test:
+
+          test 10pct  5pct  1pct
+r <= 2 |  9.72 10.49 12.25 16.26
+r <= 1 | 25.62 22.76 25.32 30.45
+r = 0  | 55.76 39.06 42.44 48.45
+
+Eigenvectors, normalised to first column:
+(These are the cointegration relations)
+
+                 log_IMPO_ts.l6 log_PIBARG_ts.l6 log_TCRM_ts.l6    trend.l6
+log_IMPO_ts.l6      1.000000000      1.000000000    1.000000000  1.00000000
+log_PIBARG_ts.l6   -1.280631152     -3.871089965   -3.225628572 -3.32002321
+log_TCRM_ts.l6      0.444365099      0.405209410   -0.268828654  0.21412449
+trend.l6           -0.006039296      0.008719766    0.006447293  0.02019567
+
+Weights W:
+(This is the loading matrix)
+
+                log_IMPO_ts.l6 log_PIBARG_ts.l6 log_TCRM_ts.l6      trend.l6
+log_IMPO_ts.d      0.004867497       0.02183950    -0.16330940 -2.034866e-13
+log_PIBARG_ts.d    0.064313681       0.06950109    -0.04666807 -7.808553e-14
+log_TCRM_ts.d     -0.295996362       0.18654911     0.08506407  2.816524e-13
+
+> ### Prueba de Johansen para exportaciones
+> johansen_expo <- ca.jo(datos_expo, type = "trace", ecdet = "trend", K = 5)
+> summary(johansen_expo)
+
+###################### 
+# Johansen-Procedure # 
+###################### 
+
+Test type: trace statistic , with linear trend in cointegration 
+
+Eigenvalues (lambda):
+[1] 2.541678e-01 1.221594e-01 5.475118e-02 1.033295e-17
+
+Values of teststatistic and critical values of test:
+
+          test 10pct  5pct  1pct
+r <= 2 |  5.12 10.49 12.25 16.26
+r <= 1 | 16.98 22.76 25.32 30.45
+r = 0  | 43.67 39.06 42.44 48.45
+
+Eigenvectors, normalised to first column:
+(These are the cointegration relations)
+
+                    log_EXPO_ts.l5 log_PIBSOCIOS_ts.l5 log_TCRM_ts.l5     trend.l5
+log_EXPO_ts.l5         1.000000000          1.00000000     1.00000000  1.000000000
+log_PIBSOCIOS_ts.l5    1.375593721         -2.58408979     0.30841131 -1.048003066
+log_TCRM_ts.l5        -0.005797124         -1.03787856     4.81108827 -0.246729921
+trend.l5              -0.029607009          0.04065878     0.01160514  0.004762802
+
+Weights W:
+(This is the loading matrix)
+
+                   log_EXPO_ts.l5 log_PIBSOCIOS_ts.l5 log_TCRM_ts.l5      trend.l5
+log_EXPO_ts.d         -0.31720398         -0.06994815   0.0006882347 -8.244310e-14
+log_PIBSOCIOS_ts.d    -0.09898968          0.02449408   0.0031417544 -8.887689e-15
+log_TCRM_ts.d         -0.28283163          0.06484175  -0.0097349121  2.449464e-14
+
+> ### Convertir los resultados de Johansen a un modelo VEC para importaciones
+> vecm_impo <- cajorls(johansen_impo, r = 2)
+> summary(vecm_impo)
+     Length Class  Mode   
+rlm  12     mlm    list   
+beta  8     -none- numeric
+> ### Convertir los resultados de Johansen a un modelo VEC para exportaciones
+> vecm_expo <- cajorls(johansen_expo, r = 1)
+> summary(vecm_expo)
+     Length Class  Mode   
+rlm  12     mlm    list   
+beta  4     -none- numeric
+> ### Extraer los coeficientes del vector de cointegración para importaciones
+> vec_impo <- vecm_impo$beta
+> print("Coeficientes del vector de cointegración para Importaciones:")
+[1] "Coeficientes del vector de cointegración para Importaciones:"
+> print(vec_impo)
+                          ect1          ect2
+log_IMPO_ts.l6    1.000000e+00  5.551115e-17
+log_PIBARG_ts.l6  2.220446e-16  1.000000e+00
+log_TCRM_ts.l6    4.637223e-01  1.511535e-02
+trend.l6         -1.333565e-02 -5.697470e-03
+> ### Extraer los coeficientes del vector de cointegración para exportaciones
+> vec_expo <- vecm_expo$beta
+> print("Coeficientes del vector de cointegración para Exportaciones:")
+[1] "Coeficientes del vector de cointegración para Exportaciones:"
+> print(vec_expo)
+                            ect1
+log_EXPO_ts.l5       1.000000000
+log_PIBSOCIOS_ts.l5  1.375593721
+log_TCRM_ts.l5      -0.005797124
+trend.l5            -0.029607009
+> ### Residuos del modelo VEC para importaciones
+> print("Resumen del modelo VEC para Importaciones:")
+[1] "Resumen del modelo VEC para Importaciones:"
+> summary(vecm_impo$rlm)
+Response log_IMPO_ts.d :
+
+Call:
+lm(formula = log_IMPO_ts.d ~ ect1 + ect2 + constant + log_IMPO_ts.dl1 + 
+    log_PIBARG_ts.dl1 + log_TCRM_ts.dl1 + log_IMPO_ts.dl2 + log_PIBARG_ts.dl2 + 
+    log_TCRM_ts.dl2 + log_IMPO_ts.dl3 + log_PIBARG_ts.dl3 + log_TCRM_ts.dl3 + 
+    log_IMPO_ts.dl4 + log_PIBARG_ts.dl4 + log_TCRM_ts.dl4 + log_IMPO_ts.dl5 + 
+    log_PIBARG_ts.dl5 + log_TCRM_ts.dl5 - 1, data = data.mat)
+
+Residuals:
+      Min        1Q    Median        3Q       Max 
+-0.275039 -0.032482  0.001238  0.032929  0.156308 
+
+Coefficients:
+                  Estimate Std. Error t value Pr(>|t|)   
+ect1               0.02671    0.10820   0.247  0.80575   
+ect2              -0.09078    0.29837  -0.304  0.76183   
+constant           0.83474    2.72406   0.306  0.76016   
+log_IMPO_ts.dl1    0.57243    0.19144   2.990  0.00382 **
+log_PIBARG_ts.dl1  0.31458    0.42157   0.746  0.45798   
+log_TCRM_ts.dl1    0.24326    0.11548   2.107  0.03864 * 
+log_IMPO_ts.dl2    0.08646    0.18029   0.480  0.63302   
+log_PIBARG_ts.dl2 -0.22765    0.41148  -0.553  0.58181   
+log_TCRM_ts.dl2   -0.08162    0.11377  -0.717  0.47544   
+log_IMPO_ts.dl3   -0.05152    0.18051  -0.285  0.77615   
+log_PIBARG_ts.dl3 -0.26203    0.45630  -0.574  0.56759   
+log_TCRM_ts.dl3    0.13191    0.11800   1.118  0.26735   
+log_IMPO_ts.dl4    0.22329    0.18918   1.180  0.24177   
+log_PIBARG_ts.dl4  0.19591    0.49880   0.393  0.69565   
+log_TCRM_ts.dl4    0.06507    0.11224   0.580  0.56393   
+log_IMPO_ts.dl5   -0.31333    0.15654  -2.002  0.04910 * 
+log_PIBARG_ts.dl5  0.09800    0.44621   0.220  0.82679   
+log_TCRM_ts.dl5   -0.06286    0.11143  -0.564  0.57444   
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 0.07271 on 72 degrees of freedom
+Multiple R-squared:  0.5332,	Adjusted R-squared:  0.4166 
+F-statistic:  4.57 on 18 and 72 DF,  p-value: 1.735e-06
+
+
+Response log_PIBARG_ts.d :
+
+Call:
+lm(formula = log_PIBARG_ts.d ~ ect1 + ect2 + constant + log_IMPO_ts.dl1 + 
+    log_PIBARG_ts.dl1 + log_TCRM_ts.dl1 + log_IMPO_ts.dl2 + log_PIBARG_ts.dl2 + 
+    log_TCRM_ts.dl2 + log_IMPO_ts.dl3 + log_PIBARG_ts.dl3 + log_TCRM_ts.dl3 + 
+    log_IMPO_ts.dl4 + log_PIBARG_ts.dl4 + log_TCRM_ts.dl4 + log_IMPO_ts.dl5 + 
+    log_PIBARG_ts.dl5 + log_TCRM_ts.dl5 - 1, data = data.mat)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-0.06342 -0.01561  0.00109  0.01375  0.06900 
+
+Coefficients:
+                    Estimate Std. Error t value Pr(>|t|)    
+ect1               0.1338148  0.0445846   3.001 0.003692 ** 
+ect2              -0.3514071  0.1229445  -2.858 0.005567 ** 
+constant           2.8325726  1.1224452   2.524 0.013824 *  
+log_IMPO_ts.dl1    0.2669350  0.0788843   3.384 0.001159 ** 
+log_PIBARG_ts.dl1 -0.4780516  0.1737087  -2.752 0.007489 ** 
+log_TCRM_ts.dl1    0.0616657  0.0475820   1.296 0.199119    
+log_IMPO_ts.dl2    0.1143950  0.0742902   1.540 0.127983    
+log_PIBARG_ts.dl2 -0.6449893  0.1695503  -3.804 0.000296 ***
+log_TCRM_ts.dl2    0.0347648  0.0468802   0.742 0.460762    
+log_IMPO_ts.dl3    0.1961928  0.0743801   2.638 0.010221 *  
+log_PIBARG_ts.dl3 -0.7477767  0.1880175  -3.977 0.000164 ***
+log_TCRM_ts.dl3    0.0670582  0.0486226   1.379 0.172116    
+log_IMPO_ts.dl4    0.0421961  0.0779518   0.541 0.589965    
+log_PIBARG_ts.dl4  0.1539839  0.2055279   0.749 0.456171    
+log_TCRM_ts.dl4    0.0008945  0.0462500   0.019 0.984622    
+log_IMPO_ts.dl5   -0.0289451  0.0645012  -0.449 0.654958    
+log_PIBARG_ts.dl5 -0.3630735  0.1838612  -1.975 0.052136 .  
+log_TCRM_ts.dl5    0.0565290  0.0459156   1.231 0.222273    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 0.02996 on 72 degrees of freedom
+Multiple R-squared:  0.8818,	Adjusted R-squared:  0.8522 
+F-statistic: 29.83 on 18 and 72 DF,  p-value: < 2.2e-16
+
+
+Response log_TCRM_ts.d :
+
+Call:
+lm(formula = log_TCRM_ts.d ~ ect1 + ect2 + constant + log_IMPO_ts.dl1 + 
+    log_PIBARG_ts.dl1 + log_TCRM_ts.dl1 + log_IMPO_ts.dl2 + log_PIBARG_ts.dl2 + 
+    log_TCRM_ts.dl2 + log_IMPO_ts.dl3 + log_PIBARG_ts.dl3 + log_TCRM_ts.dl3 + 
+    log_IMPO_ts.dl4 + log_PIBARG_ts.dl4 + log_TCRM_ts.dl4 + log_IMPO_ts.dl5 + 
+    log_PIBARG_ts.dl5 + log_TCRM_ts.dl5 - 1, data = data.mat)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-0.16219 -0.03372  0.00053  0.03115  0.44550 
+
+Coefficients:
+                  Estimate Std. Error t value Pr(>|t|)   
+ect1              -0.10945    0.11952  -0.916  0.36285   
+ect2              -0.34309    0.32957  -1.041  0.30135   
+constant           5.95848    3.00887   1.980  0.05149 . 
+log_IMPO_ts.dl1   -0.42328    0.21146  -2.002  0.04909 * 
+log_PIBARG_ts.dl1 -0.47381    0.46565  -1.018  0.31231   
+log_TCRM_ts.dl1   -0.01025    0.12755  -0.080  0.93616   
+log_IMPO_ts.dl2   -0.21169    0.19915  -1.063  0.29133   
+log_PIBARG_ts.dl2  0.14125    0.45450   0.311  0.75686   
+log_TCRM_ts.dl2   -0.33973    0.12567  -2.703  0.00856 **
+log_IMPO_ts.dl3   -0.39136    0.19939  -1.963  0.05353 . 
+log_PIBARG_ts.dl3  0.31711    0.50401   0.629  0.53122   
+log_TCRM_ts.dl3   -0.26600    0.13034  -2.041  0.04494 * 
+log_IMPO_ts.dl4   -0.03781    0.20896  -0.181  0.85691   
+log_PIBARG_ts.dl4 -0.10298    0.55095  -0.187  0.85226   
+log_TCRM_ts.dl4   -0.19016    0.12398  -1.534  0.12945   
+log_IMPO_ts.dl5   -0.12204    0.17290  -0.706  0.48259   
+log_PIBARG_ts.dl5  0.21401    0.49287   0.434  0.66543   
+log_TCRM_ts.dl5   -0.20985    0.12308  -1.705  0.09251 . 
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 0.08032 on 72 degrees of freedom
+Multiple R-squared:  0.4567,	Adjusted R-squared:  0.3209 
+F-statistic: 3.363 on 18 and 72 DF,  p-value: 0.0001284
+
+
+> ### Residuos del modelo VEC para exportaciones
+> print("Resumen del modelo VEC para Exportaciones:")
+[1] "Resumen del modelo VEC para Exportaciones:"
+> summary(vecm_expo$rlm)
+Response log_EXPO_ts.d :
+
+Call:
+lm(formula = log_EXPO_ts.d ~ ect1 + constant + log_EXPO_ts.dl1 + 
+    log_PIBSOCIOS_ts.dl1 + log_TCRM_ts.dl1 + log_EXPO_ts.dl2 + 
+    log_PIBSOCIOS_ts.dl2 + log_TCRM_ts.dl2 + log_EXPO_ts.dl3 + 
+    log_PIBSOCIOS_ts.dl3 + log_TCRM_ts.dl3 + log_EXPO_ts.dl4 + 
+    log_PIBSOCIOS_ts.dl4 + log_TCRM_ts.dl4 - 1, data = data.mat)
+
+Residuals:
+      Min        1Q    Median        3Q       Max 
+-0.177838 -0.029832 -0.006581  0.034016  0.159779 
+
+Coefficients:
+                      Estimate Std. Error t value Pr(>|t|)    
+ect1                 -0.317204   0.082386  -3.850 0.000242 ***
+constant              5.588061   1.447685   3.860 0.000234 ***
+log_EXPO_ts.dl1      -0.545814   0.107609  -5.072 2.65e-06 ***
+log_PIBSOCIOS_ts.dl1 -0.300540   0.208401  -1.442 0.153324    
+log_TCRM_ts.dl1      -0.125486   0.079137  -1.586 0.116908    
+log_EXPO_ts.dl2      -0.664271   0.120486  -5.513 4.52e-07 ***
+log_PIBSOCIOS_ts.dl2 -0.191704   0.204627  -0.937 0.351767    
+log_TCRM_ts.dl2       0.045855   0.084736   0.541 0.589964    
+log_EXPO_ts.dl3      -0.456555   0.130774  -3.491 0.000800 ***
+log_PIBSOCIOS_ts.dl3 -0.253898   0.207488  -1.224 0.224807    
+log_TCRM_ts.dl3      -0.041699   0.085337  -0.489 0.626489    
+log_EXPO_ts.dl4      -0.058200   0.137829  -0.422 0.674010    
+log_PIBSOCIOS_ts.dl4  0.307540   0.227671   1.351 0.180712    
+log_TCRM_ts.dl4      -0.008959   0.078448  -0.114 0.909371    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 0.06121 on 77 degrees of freedom
+Multiple R-squared:  0.7333,	Adjusted R-squared:  0.6848 
+F-statistic: 15.12 on 14 and 77 DF,  p-value: < 2.2e-16
+
+
+Response log_PIBSOCIOS_ts.d :
+
+Call:
+lm(formula = log_PIBSOCIOS_ts.d ~ ect1 + constant + log_EXPO_ts.dl1 + 
+    log_PIBSOCIOS_ts.dl1 + log_TCRM_ts.dl1 + log_EXPO_ts.dl2 + 
+    log_PIBSOCIOS_ts.dl2 + log_TCRM_ts.dl2 + log_EXPO_ts.dl3 + 
+    log_PIBSOCIOS_ts.dl3 + log_TCRM_ts.dl3 + log_EXPO_ts.dl4 + 
+    log_PIBSOCIOS_ts.dl4 + log_TCRM_ts.dl4 - 1, data = data.mat)
+
+Residuals:
+      Min        1Q    Median        3Q       Max 
+-0.095679 -0.011523  0.001518  0.013509  0.088264 
+
+Coefficients:
+                      Estimate Std. Error t value Pr(>|t|)    
+ect1                 -0.098990   0.039887  -2.482 0.015252 *  
+constant              1.753930   0.700894   2.502 0.014454 *  
+log_EXPO_ts.dl1      -0.044961   0.052099  -0.863 0.390822    
+log_PIBSOCIOS_ts.dl1  0.000453   0.100897   0.004 0.996430    
+log_TCRM_ts.dl1      -0.025346   0.038314  -0.662 0.510245    
+log_EXPO_ts.dl2      -0.107068   0.058333  -1.835 0.070299 .  
+log_PIBSOCIOS_ts.dl2 -0.073380   0.099070  -0.741 0.461134    
+log_TCRM_ts.dl2      -0.041333   0.041025  -1.008 0.316848    
+log_EXPO_ts.dl3      -0.165813   0.063314  -2.619 0.010619 *  
+log_PIBSOCIOS_ts.dl3 -0.343932   0.100455  -3.424 0.000993 ***
+log_TCRM_ts.dl3      -0.029573   0.041316  -0.716 0.476298    
+log_EXPO_ts.dl4      -0.042491   0.066729  -0.637 0.526171    
+log_PIBSOCIOS_ts.dl4  0.440568   0.110226   3.997 0.000146 ***
+log_TCRM_ts.dl4      -0.026183   0.037980  -0.689 0.492658    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 0.02964 on 77 degrees of freedom
+Multiple R-squared:  0.7128,	Adjusted R-squared:  0.6606 
+F-statistic: 13.65 on 14 and 77 DF,  p-value: 1.455e-15
+
+
+Response log_TCRM_ts.d :
+
+Call:
+lm(formula = log_TCRM_ts.d ~ ect1 + constant + log_EXPO_ts.dl1 + 
+    log_PIBSOCIOS_ts.dl1 + log_TCRM_ts.dl1 + log_EXPO_ts.dl2 + 
+    log_PIBSOCIOS_ts.dl2 + log_TCRM_ts.dl2 + log_EXPO_ts.dl3 + 
+    log_PIBSOCIOS_ts.dl3 + log_TCRM_ts.dl3 + log_EXPO_ts.dl4 + 
+    log_PIBSOCIOS_ts.dl4 + log_TCRM_ts.dl4 - 1, data = data.mat)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-0.17218 -0.03540 -0.00689  0.02999  0.59704 
+
+Coefficients:
+                     Estimate Std. Error t value Pr(>|t|)   
+ect1                 -0.28283    0.11753  -2.407  0.01850 * 
+constant              4.97987    2.06516   2.411  0.01828 * 
+log_EXPO_ts.dl1      -0.41329    0.15351  -2.692  0.00870 **
+log_PIBSOCIOS_ts.dl1  0.34269    0.29729   1.153  0.25259   
+log_TCRM_ts.dl1       0.36181    0.11289   3.205  0.00197 **
+log_EXPO_ts.dl2      -0.16795    0.17188  -0.977  0.33156   
+log_PIBSOCIOS_ts.dl2 -0.64954    0.29191  -2.225  0.02900 * 
+log_TCRM_ts.dl2      -0.23992    0.12088  -1.985  0.05073 . 
+log_EXPO_ts.dl3      -0.15729    0.18655  -0.843  0.40177   
+log_PIBSOCIOS_ts.dl3 -0.13330    0.29599  -0.450  0.65373   
+log_TCRM_ts.dl3      -0.09685    0.12174  -0.796  0.42873   
+log_EXPO_ts.dl4      -0.35502    0.19662  -1.806  0.07488 . 
+log_PIBSOCIOS_ts.dl4 -0.21191    0.32478  -0.652  0.51604   
+log_TCRM_ts.dl4      -0.12182    0.11191  -1.089  0.27974   
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 0.08732 on 77 degrees of freedom
+Multiple R-squared:  0.3133,	Adjusted R-squared:  0.1884 
+F-statistic: 2.509 on 14 and 77 DF,  p-value: 0.005396
+
+
+> ### Coeficientes del modelo VEC para importaciones
+> coef_short_impo <- vecm_impo$rlm$coefficients
+> print("Coeficientes del modelo VEC para Importaciones (Corto Plazo):")
+[1] "Coeficientes del modelo VEC para Importaciones (Corto Plazo):"
+> print(coef_short_impo)
+                  log_IMPO_ts.d log_PIBARG_ts.d log_TCRM_ts.d
+ect1                 0.02670700    0.1338147764   -0.10944725
+ect2                -0.09077614   -0.3514070950   -0.34308624
+constant             0.83474183    2.8325726409    5.95847711
+log_IMPO_ts.dl1      0.57243393    0.2669350497   -0.42328017
+log_PIBARG_ts.dl1    0.31457546   -0.4780516473   -0.47381420
+log_TCRM_ts.dl1      0.24325517    0.0616656994   -0.01025259
+log_IMPO_ts.dl2      0.08645668    0.1143949725   -0.21169139
+log_PIBARG_ts.dl2   -0.22764678   -0.6449892694    0.14125267
+log_TCRM_ts.dl2     -0.08162181    0.0347648221   -0.33972995
+log_IMPO_ts.dl3     -0.05151906    0.1961928000   -0.39135506
+log_PIBARG_ts.dl3   -0.26202624   -0.7477767419    0.31711040
+log_TCRM_ts.dl3      0.13190717    0.0670581752   -0.26600024
+log_IMPO_ts.dl4      0.22329027    0.0421961292   -0.03781322
+log_PIBARG_ts.dl4    0.19591470    0.1539838549   -0.10297678
+log_TCRM_ts.dl4      0.06506703    0.0008945472   -0.19016298
+log_IMPO_ts.dl5     -0.31332564   -0.0289450861   -0.12203509
+log_PIBARG_ts.dl5    0.09799623   -0.3630735099    0.21400795
+log_TCRM_ts.dl5     -0.06285945    0.0565290405   -0.20985061
+> ### Coeficientes del modelo VEC para exportaciones
+> coef_short_expo <- vecm_expo$rlm$coefficients
+> print("Coeficientes del modelo VEC para Exportaciones (Corto Plazo):")
+[1] "Coeficientes del modelo VEC para Exportaciones (Corto Plazo):"
+> print(coef_short_expo)
+                     log_EXPO_ts.d log_PIBSOCIOS_ts.d log_TCRM_ts.d
+ect1                  -0.317203978      -0.0989896758   -0.28283163
+constant               5.588061141       1.7539298332    4.97987212
+log_EXPO_ts.dl1       -0.545813530      -0.0449607380   -0.41329092
+log_PIBSOCIOS_ts.dl1  -0.300539899       0.0004529516    0.34269174
+log_TCRM_ts.dl1       -0.125486418      -0.0253459213    0.36181215
+log_EXPO_ts.dl2       -0.664271398      -0.1070681470   -0.16794665
+log_PIBSOCIOS_ts.dl2  -0.191703655      -0.0733798761   -0.64954134
+log_TCRM_ts.dl2        0.045855031      -0.0413325278   -0.23991538
+log_EXPO_ts.dl3       -0.456554589      -0.1658132501   -0.15728823
+log_PIBSOCIOS_ts.dl3  -0.253897821      -0.3439323394   -0.13329618
+log_TCRM_ts.dl3       -0.041698839      -0.0295727614   -0.09684905
+log_EXPO_ts.dl4       -0.058200031      -0.0424905474   -0.35502301
+log_PIBSOCIOS_ts.dl4   0.307540401       0.4405676822   -0.21190806
+log_TCRM_ts.dl4       -0.008959291      -0.0261827310   -0.12181977
+> ###################
+> ### Elasticidades. Metodologia VEC: Verificacion del a significativdidad de los coeficientes (punto 3)
+> ####################
+> ### Realizar la prueba de Johansen
+> johansen_impo <- ca.jo(datos_impo, type = "trace", ecdet = "trend", K = 6)
+> summary(johansen_impo)
+
+###################### 
+# Johansen-Procedure # 
+###################### 
+
+Test type: trace statistic , with linear trend in cointegration 
+
+Eigenvalues (lambda):
+[1]  2.845849e-01  1.619207e-01  1.023813e-01 -1.110223e-16
+
+Values of teststatistic and critical values of test:
+
+          test 10pct  5pct  1pct
+r <= 2 |  9.72 10.49 12.25 16.26
+r <= 1 | 25.62 22.76 25.32 30.45
+r = 0  | 55.76 39.06 42.44 48.45
+
+Eigenvectors, normalised to first column:
+(These are the cointegration relations)
+
+                 log_IMPO_ts.l6 log_PIBARG_ts.l6 log_TCRM_ts.l6    trend.l6
+log_IMPO_ts.l6      1.000000000      1.000000000    1.000000000  1.00000000
+log_PIBARG_ts.l6   -1.280631152     -3.871089965   -3.225628572 -3.32002321
+log_TCRM_ts.l6      0.444365099      0.405209410   -0.268828654  0.21412449
+trend.l6           -0.006039296      0.008719766    0.006447293  0.02019567
+
+Weights W:
+(This is the loading matrix)
+
+                log_IMPO_ts.l6 log_PIBARG_ts.l6 log_TCRM_ts.l6      trend.l6
+log_IMPO_ts.d      0.004867497       0.02183950    -0.16330940 -2.034866e-13
+log_PIBARG_ts.d    0.064313681       0.06950109    -0.04666807 -7.808553e-14
+log_TCRM_ts.d     -0.295996362       0.18654911     0.08506407  2.816524e-13
+
+> johansen_expo <- ca.jo(datos_expo, type = "trace", ecdet = "trend", K = 5)
+> summary(johansen_expo)
+
+###################### 
+# Johansen-Procedure # 
+###################### 
+
+Test type: trace statistic , with linear trend in cointegration 
+
+Eigenvalues (lambda):
+[1] 2.541678e-01 1.221594e-01 5.475118e-02 1.033295e-17
+
+Values of teststatistic and critical values of test:
+
+          test 10pct  5pct  1pct
+r <= 2 |  5.12 10.49 12.25 16.26
+r <= 1 | 16.98 22.76 25.32 30.45
+r = 0  | 43.67 39.06 42.44 48.45
+
+Eigenvectors, normalised to first column:
+(These are the cointegration relations)
+
+                    log_EXPO_ts.l5 log_PIBSOCIOS_ts.l5 log_TCRM_ts.l5     trend.l5
+log_EXPO_ts.l5         1.000000000          1.00000000     1.00000000  1.000000000
+log_PIBSOCIOS_ts.l5    1.375593721         -2.58408979     0.30841131 -1.048003066
+log_TCRM_ts.l5        -0.005797124         -1.03787856     4.81108827 -0.246729921
+trend.l5              -0.029607009          0.04065878     0.01160514  0.004762802
+
+Weights W:
+(This is the loading matrix)
+
+                   log_EXPO_ts.l5 log_PIBSOCIOS_ts.l5 log_TCRM_ts.l5      trend.l5
+log_EXPO_ts.d         -0.31720398         -0.06994815   0.0006882347 -8.244310e-14
+log_PIBSOCIOS_ts.d    -0.09898968          0.02449408   0.0031417544 -8.887689e-15
+log_TCRM_ts.d         -0.28283163          0.06484175  -0.0097349121  2.449464e-14
+
+> ###Extraer y Analizar los Resultados del Modelo VECM:
+> vecm_impo <- cajorls(johansen_impo, r = 2)
+> vecm_expo <- cajorls(johansen_expo, r = 1)
+> print("Resultados del VECM para Importaciones:")
+[1] "Resultados del VECM para Importaciones:"
+> summary(vecm_impo$rlm)
+Response log_IMPO_ts.d :
+
+Call:
+lm(formula = log_IMPO_ts.d ~ ect1 + ect2 + constant + log_IMPO_ts.dl1 + 
+    log_PIBARG_ts.dl1 + log_TCRM_ts.dl1 + log_IMPO_ts.dl2 + log_PIBARG_ts.dl2 + 
+    log_TCRM_ts.dl2 + log_IMPO_ts.dl3 + log_PIBARG_ts.dl3 + log_TCRM_ts.dl3 + 
+    log_IMPO_ts.dl4 + log_PIBARG_ts.dl4 + log_TCRM_ts.dl4 + log_IMPO_ts.dl5 + 
+    log_PIBARG_ts.dl5 + log_TCRM_ts.dl5 - 1, data = data.mat)
+
+Residuals:
+      Min        1Q    Median        3Q       Max 
+-0.275039 -0.032482  0.001238  0.032929  0.156308 
+
+Coefficients:
+                  Estimate Std. Error t value Pr(>|t|)   
+ect1               0.02671    0.10820   0.247  0.80575   
+ect2              -0.09078    0.29837  -0.304  0.76183   
+constant           0.83474    2.72406   0.306  0.76016   
+log_IMPO_ts.dl1    0.57243    0.19144   2.990  0.00382 **
+log_PIBARG_ts.dl1  0.31458    0.42157   0.746  0.45798   
+log_TCRM_ts.dl1    0.24326    0.11548   2.107  0.03864 * 
+log_IMPO_ts.dl2    0.08646    0.18029   0.480  0.63302   
+log_PIBARG_ts.dl2 -0.22765    0.41148  -0.553  0.58181   
+log_TCRM_ts.dl2   -0.08162    0.11377  -0.717  0.47544   
+log_IMPO_ts.dl3   -0.05152    0.18051  -0.285  0.77615   
+log_PIBARG_ts.dl3 -0.26203    0.45630  -0.574  0.56759   
+log_TCRM_ts.dl3    0.13191    0.11800   1.118  0.26735   
+log_IMPO_ts.dl4    0.22329    0.18918   1.180  0.24177   
+log_PIBARG_ts.dl4  0.19591    0.49880   0.393  0.69565   
+log_TCRM_ts.dl4    0.06507    0.11224   0.580  0.56393   
+log_IMPO_ts.dl5   -0.31333    0.15654  -2.002  0.04910 * 
+log_PIBARG_ts.dl5  0.09800    0.44621   0.220  0.82679   
+log_TCRM_ts.dl5   -0.06286    0.11143  -0.564  0.57444   
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 0.07271 on 72 degrees of freedom
+Multiple R-squared:  0.5332,	Adjusted R-squared:  0.4166 
+F-statistic:  4.57 on 18 and 72 DF,  p-value: 1.735e-06
+
+
+Response log_PIBARG_ts.d :
+
+Call:
+lm(formula = log_PIBARG_ts.d ~ ect1 + ect2 + constant + log_IMPO_ts.dl1 + 
+    log_PIBARG_ts.dl1 + log_TCRM_ts.dl1 + log_IMPO_ts.dl2 + log_PIBARG_ts.dl2 + 
+    log_TCRM_ts.dl2 + log_IMPO_ts.dl3 + log_PIBARG_ts.dl3 + log_TCRM_ts.dl3 + 
+    log_IMPO_ts.dl4 + log_PIBARG_ts.dl4 + log_TCRM_ts.dl4 + log_IMPO_ts.dl5 + 
+    log_PIBARG_ts.dl5 + log_TCRM_ts.dl5 - 1, data = data.mat)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-0.06342 -0.01561  0.00109  0.01375  0.06900 
+
+Coefficients:
+                    Estimate Std. Error t value Pr(>|t|)    
+ect1               0.1338148  0.0445846   3.001 0.003692 ** 
+ect2              -0.3514071  0.1229445  -2.858 0.005567 ** 
+constant           2.8325726  1.1224452   2.524 0.013824 *  
+log_IMPO_ts.dl1    0.2669350  0.0788843   3.384 0.001159 ** 
+log_PIBARG_ts.dl1 -0.4780516  0.1737087  -2.752 0.007489 ** 
+log_TCRM_ts.dl1    0.0616657  0.0475820   1.296 0.199119    
+log_IMPO_ts.dl2    0.1143950  0.0742902   1.540 0.127983    
+log_PIBARG_ts.dl2 -0.6449893  0.1695503  -3.804 0.000296 ***
+log_TCRM_ts.dl2    0.0347648  0.0468802   0.742 0.460762    
+log_IMPO_ts.dl3    0.1961928  0.0743801   2.638 0.010221 *  
+log_PIBARG_ts.dl3 -0.7477767  0.1880175  -3.977 0.000164 ***
+log_TCRM_ts.dl3    0.0670582  0.0486226   1.379 0.172116    
+log_IMPO_ts.dl4    0.0421961  0.0779518   0.541 0.589965    
+log_PIBARG_ts.dl4  0.1539839  0.2055279   0.749 0.456171    
+log_TCRM_ts.dl4    0.0008945  0.0462500   0.019 0.984622    
+log_IMPO_ts.dl5   -0.0289451  0.0645012  -0.449 0.654958    
+log_PIBARG_ts.dl5 -0.3630735  0.1838612  -1.975 0.052136 .  
+log_TCRM_ts.dl5    0.0565290  0.0459156   1.231 0.222273    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 0.02996 on 72 degrees of freedom
+Multiple R-squared:  0.8818,	Adjusted R-squared:  0.8522 
+F-statistic: 29.83 on 18 and 72 DF,  p-value: < 2.2e-16
+
+
+Response log_TCRM_ts.d :
+
+Call:
+lm(formula = log_TCRM_ts.d ~ ect1 + ect2 + constant + log_IMPO_ts.dl1 + 
+    log_PIBARG_ts.dl1 + log_TCRM_ts.dl1 + log_IMPO_ts.dl2 + log_PIBARG_ts.dl2 + 
+    log_TCRM_ts.dl2 + log_IMPO_ts.dl3 + log_PIBARG_ts.dl3 + log_TCRM_ts.dl3 + 
+    log_IMPO_ts.dl4 + log_PIBARG_ts.dl4 + log_TCRM_ts.dl4 + log_IMPO_ts.dl5 + 
+    log_PIBARG_ts.dl5 + log_TCRM_ts.dl5 - 1, data = data.mat)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-0.16219 -0.03372  0.00053  0.03115  0.44550 
+
+Coefficients:
+                  Estimate Std. Error t value Pr(>|t|)   
+ect1              -0.10945    0.11952  -0.916  0.36285   
+ect2              -0.34309    0.32957  -1.041  0.30135   
+constant           5.95848    3.00887   1.980  0.05149 . 
+log_IMPO_ts.dl1   -0.42328    0.21146  -2.002  0.04909 * 
+log_PIBARG_ts.dl1 -0.47381    0.46565  -1.018  0.31231   
+log_TCRM_ts.dl1   -0.01025    0.12755  -0.080  0.93616   
+log_IMPO_ts.dl2   -0.21169    0.19915  -1.063  0.29133   
+log_PIBARG_ts.dl2  0.14125    0.45450   0.311  0.75686   
+log_TCRM_ts.dl2   -0.33973    0.12567  -2.703  0.00856 **
+log_IMPO_ts.dl3   -0.39136    0.19939  -1.963  0.05353 . 
+log_PIBARG_ts.dl3  0.31711    0.50401   0.629  0.53122   
+log_TCRM_ts.dl3   -0.26600    0.13034  -2.041  0.04494 * 
+log_IMPO_ts.dl4   -0.03781    0.20896  -0.181  0.85691   
+log_PIBARG_ts.dl4 -0.10298    0.55095  -0.187  0.85226   
+log_TCRM_ts.dl4   -0.19016    0.12398  -1.534  0.12945   
+log_IMPO_ts.dl5   -0.12204    0.17290  -0.706  0.48259   
+log_PIBARG_ts.dl5  0.21401    0.49287   0.434  0.66543   
+log_TCRM_ts.dl5   -0.20985    0.12308  -1.705  0.09251 . 
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 0.08032 on 72 degrees of freedom
+Multiple R-squared:  0.4567,	Adjusted R-squared:  0.3209 
+F-statistic: 3.363 on 18 and 72 DF,  p-value: 0.0001284
+
+
+> print("Resultados del VECM para Exportaciones:")
+[1] "Resultados del VECM para Exportaciones:"
+> summary(vecm_expo$rlm)
+Response log_EXPO_ts.d :
+
+Call:
+lm(formula = log_EXPO_ts.d ~ ect1 + constant + log_EXPO_ts.dl1 + 
+    log_PIBSOCIOS_ts.dl1 + log_TCRM_ts.dl1 + log_EXPO_ts.dl2 + 
+    log_PIBSOCIOS_ts.dl2 + log_TCRM_ts.dl2 + log_EXPO_ts.dl3 + 
+    log_PIBSOCIOS_ts.dl3 + log_TCRM_ts.dl3 + log_EXPO_ts.dl4 + 
+    log_PIBSOCIOS_ts.dl4 + log_TCRM_ts.dl4 - 1, data = data.mat)
+
+Residuals:
+      Min        1Q    Median        3Q       Max 
+-0.177838 -0.029832 -0.006581  0.034016  0.159779 
+
+Coefficients:
+                      Estimate Std. Error t value Pr(>|t|)    
+ect1                 -0.317204   0.082386  -3.850 0.000242 ***
+constant              5.588061   1.447685   3.860 0.000234 ***
+log_EXPO_ts.dl1      -0.545814   0.107609  -5.072 2.65e-06 ***
+log_PIBSOCIOS_ts.dl1 -0.300540   0.208401  -1.442 0.153324    
+log_TCRM_ts.dl1      -0.125486   0.079137  -1.586 0.116908    
+log_EXPO_ts.dl2      -0.664271   0.120486  -5.513 4.52e-07 ***
+log_PIBSOCIOS_ts.dl2 -0.191704   0.204627  -0.937 0.351767    
+log_TCRM_ts.dl2       0.045855   0.084736   0.541 0.589964    
+log_EXPO_ts.dl3      -0.456555   0.130774  -3.491 0.000800 ***
+log_PIBSOCIOS_ts.dl3 -0.253898   0.207488  -1.224 0.224807    
+log_TCRM_ts.dl3      -0.041699   0.085337  -0.489 0.626489    
+log_EXPO_ts.dl4      -0.058200   0.137829  -0.422 0.674010    
+log_PIBSOCIOS_ts.dl4  0.307540   0.227671   1.351 0.180712    
+log_TCRM_ts.dl4      -0.008959   0.078448  -0.114 0.909371    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 0.06121 on 77 degrees of freedom
+Multiple R-squared:  0.7333,	Adjusted R-squared:  0.6848 
+F-statistic: 15.12 on 14 and 77 DF,  p-value: < 2.2e-16
+
+
+Response log_PIBSOCIOS_ts.d :
+
+Call:
+lm(formula = log_PIBSOCIOS_ts.d ~ ect1 + constant + log_EXPO_ts.dl1 + 
+    log_PIBSOCIOS_ts.dl1 + log_TCRM_ts.dl1 + log_EXPO_ts.dl2 + 
+    log_PIBSOCIOS_ts.dl2 + log_TCRM_ts.dl2 + log_EXPO_ts.dl3 + 
+    log_PIBSOCIOS_ts.dl3 + log_TCRM_ts.dl3 + log_EXPO_ts.dl4 + 
+    log_PIBSOCIOS_ts.dl4 + log_TCRM_ts.dl4 - 1, data = data.mat)
+
+Residuals:
+      Min        1Q    Median        3Q       Max 
+-0.095679 -0.011523  0.001518  0.013509  0.088264 
+
+Coefficients:
+                      Estimate Std. Error t value Pr(>|t|)    
+ect1                 -0.098990   0.039887  -2.482 0.015252 *  
+constant              1.753930   0.700894   2.502 0.014454 *  
+log_EXPO_ts.dl1      -0.044961   0.052099  -0.863 0.390822    
+log_PIBSOCIOS_ts.dl1  0.000453   0.100897   0.004 0.996430    
+log_TCRM_ts.dl1      -0.025346   0.038314  -0.662 0.510245    
+log_EXPO_ts.dl2      -0.107068   0.058333  -1.835 0.070299 .  
+log_PIBSOCIOS_ts.dl2 -0.073380   0.099070  -0.741 0.461134    
+log_TCRM_ts.dl2      -0.041333   0.041025  -1.008 0.316848    
+log_EXPO_ts.dl3      -0.165813   0.063314  -2.619 0.010619 *  
+log_PIBSOCIOS_ts.dl3 -0.343932   0.100455  -3.424 0.000993 ***
+log_TCRM_ts.dl3      -0.029573   0.041316  -0.716 0.476298    
+log_EXPO_ts.dl4      -0.042491   0.066729  -0.637 0.526171    
+log_PIBSOCIOS_ts.dl4  0.440568   0.110226   3.997 0.000146 ***
+log_TCRM_ts.dl4      -0.026183   0.037980  -0.689 0.492658    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 0.02964 on 77 degrees of freedom
+Multiple R-squared:  0.7128,	Adjusted R-squared:  0.6606 
+F-statistic: 13.65 on 14 and 77 DF,  p-value: 1.455e-15
+
+
+Response log_TCRM_ts.d :
+
+Call:
+lm(formula = log_TCRM_ts.d ~ ect1 + constant + log_EXPO_ts.dl1 + 
+    log_PIBSOCIOS_ts.dl1 + log_TCRM_ts.dl1 + log_EXPO_ts.dl2 + 
+    log_PIBSOCIOS_ts.dl2 + log_TCRM_ts.dl2 + log_EXPO_ts.dl3 + 
+    log_PIBSOCIOS_ts.dl3 + log_TCRM_ts.dl3 + log_EXPO_ts.dl4 + 
+    log_PIBSOCIOS_ts.dl4 + log_TCRM_ts.dl4 - 1, data = data.mat)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-0.17218 -0.03540 -0.00689  0.02999  0.59704 
+
+Coefficients:
+                     Estimate Std. Error t value Pr(>|t|)   
+ect1                 -0.28283    0.11753  -2.407  0.01850 * 
+constant              4.97987    2.06516   2.411  0.01828 * 
+log_EXPO_ts.dl1      -0.41329    0.15351  -2.692  0.00870 **
+log_PIBSOCIOS_ts.dl1  0.34269    0.29729   1.153  0.25259   
+log_TCRM_ts.dl1       0.36181    0.11289   3.205  0.00197 **
+log_EXPO_ts.dl2      -0.16795    0.17188  -0.977  0.33156   
+log_PIBSOCIOS_ts.dl2 -0.64954    0.29191  -2.225  0.02900 * 
+log_TCRM_ts.dl2      -0.23992    0.12088  -1.985  0.05073 . 
+log_EXPO_ts.dl3      -0.15729    0.18655  -0.843  0.40177   
+log_PIBSOCIOS_ts.dl3 -0.13330    0.29599  -0.450  0.65373   
+log_TCRM_ts.dl3      -0.09685    0.12174  -0.796  0.42873   
+log_EXPO_ts.dl4      -0.35502    0.19662  -1.806  0.07488 . 
+log_PIBSOCIOS_ts.dl4 -0.21191    0.32478  -0.652  0.51604   
+log_TCRM_ts.dl4      -0.12182    0.11191  -1.089  0.27974   
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 0.08732 on 77 degrees of freedom
+Multiple R-squared:  0.3133,	Adjusted R-squared:  0.1884 
+F-statistic: 2.509 on 14 and 77 DF,  p-value: 0.005396
+
+> ####################
+> ### Elasticidades de corto plazo (punto 4)
+> ####################
+> ### Diferenciar las series logarítmicas
+> diff_log_IMPO <- diff(datos$log_IMPO)
+> diff_log_PIBARG <- diff(datos$log_PIBARG)
+> diff_log_TCRM <- diff(datos$log_TCRM)
+> diff_log_EXPO <- diff(datos$log_EXPO)
+> diff_log_PIBSOCIOS <- diff(datos$log_PIBSOCIOS)
+> ### Asegurarse de que todas las series diferenciadas tengan la misma longitud
+> min_length <- min(length(diff_log_IMPO), length(diff_log_PIBARG), length(diff_log_TCRM),
++                   length(diff_log_EXPO), length(diff_log_PIBSOCIOS))
+> diff_log_IMPO <- diff_log_IMPO[1:min_length]
+> diff_log_PIBARG <- diff_log_PIBARG[1:min_length]
+> diff_log_TCRM <- diff_log_TCRM[1:min_length]
+> diff_log_EXPO <- diff_log_EXPO[1:min_length]
+> diff_log_PIBSOCIOS <- diff_log_PIBSOCIOS[1:min_length]
+> ### Modelo en diferencias logarítmicas para importaciones
+> datos_diff_impo <- data.frame(diff_log_IMPO, diff_log_PIBARG, diff_log_TCRM)
+> datos_diff_expo <- data.frame(diff_log_EXPO, diff_log_PIBSOCIOS, diff_log_TCRM)
+> ### Eliminar NAs que puedan haberse introducido por las diferencias
+> datos_diff_impo <- na.omit(datos_diff_impo)
+> datos_diff_expo <- na.omit(datos_diff_expo)
+> ### Estimar el modelo en diferencias para Importaciones
+> modelo_diff_impo <- lm(diff_log_IMPO ~ diff_log_PIBARG + diff_log_TCRM, data = datos_diff_impo)
+> summary(modelo_diff_impo)
+
+Call:
+lm(formula = diff_log_IMPO ~ diff_log_PIBARG + diff_log_TCRM, 
+    data = datos_diff_impo)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-0.23871 -0.03927  0.00563  0.05330  0.18290 
+
+Coefficients:
+                 Estimate Std. Error t value Pr(>|t|)    
+(Intercept)      0.008774   0.008634   1.016   0.3122    
+diff_log_PIBARG  0.214437   0.112899   1.899   0.0606 .  
+diff_log_TCRM   -0.414489   0.091813  -4.514 1.88e-05 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 0.08387 on 92 degrees of freedom
+Multiple R-squared:  0.2282,	Adjusted R-squared:  0.2115 
+F-statistic:  13.6 on 2 and 92 DF,  p-value: 6.671e-06
+
+> ### Estimar el modelo en diferencias para Exportaciones
+> modelo_diff_expo <- lm(diff_log_EXPO ~ diff_log_PIBSOCIOS + diff_log_TCRM, data = datos_diff_expo)
+> summary(modelo_diff_expo)
+
+Call:
+lm(formula = diff_log_EXPO ~ diff_log_PIBSOCIOS + diff_log_TCRM, 
+    data = datos_diff_expo)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-0.25091 -0.06632 -0.01541  0.05332  0.29705 
+
+Coefficients:
+                    Estimate Std. Error t value Pr(>|t|)    
+(Intercept)        -0.006248   0.010848  -0.576    0.566    
+diff_log_PIBSOCIOS  0.965363   0.217958   4.429  2.6e-05 ***
+diff_log_TCRM       0.099156   0.108661   0.913    0.364    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 0.0992 on 92 degrees of freedom
+Multiple R-squared:  0.1761,	Adjusted R-squared:  0.1582 
+F-statistic: 9.834 on 2 and 92 DF,  p-value: 0.0001348
+
+> #################### FIN ####################

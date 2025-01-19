@@ -1,0 +1,337 @@
+####################
+### Configuracion
+####################
+### Limpiar entorno
+rm(list = ls()) #borrar todos los objetos del entorno
+cat("\014") #limpiar la consola
+### Instalar y cargar las librerías necesarias (solo si no están instaladas previamente)
+if(!require(ggplot2)) install.packages("ggplot2")
+if(!require(xts)) install.packages("xts")
+if(!require(readxl)) install.packages("readxl")
+if(!require(tseries)) install.packages("tseries")
+if(!require(forecast)) install.packages("forecast")
+if(!require(urca)) install.packages("urca")
+if(!require(vars)) install.packages("vars")
+library(ggplot2)
+library(xts)
+library(readxl)
+library(tseries)
+library(forecast)
+library(urca)
+library(vars)
+####################
+### Importacion y manipulacion de los datos
+####################
+### Cargar los datos desde el archivo
+file_path <- "C:/Users/santi/Dropbox/Facultad/UBA/Primer trimestre/Econometría I/Segunda parte/TP 2/TP 2 - Datos.xlsx"
+datos <- read_excel(file_path)
+### Convertir los datos a una serie de tiempo (xts)
+datos$PERIODO <- as.Date(paste0(substr(datos$PERIODO, 1, 4), "-", 
+                                as.numeric(substr(datos$PERIODO, 6, 6)) * 3 - 2, "-01"))
+### Crear objeto xts
+datos_xts <- xts(datos[,-1], order.by = datos$PERIODO)
+### Convertir datos_xts a un formato adecuado para ggplot
+datos_long <- fortify.zoo(datos_xts, melt = TRUE)
+### Renombrar las series para una mejor visualización
+levels(datos_long$Series) <- c("Importaciones", "Exportaciones", "PIB de Argentina", "PIB de socios comerciales", "Tipo de Cambio Real Multilateral")
+####################
+### Graficar (punto 1)
+####################
+### Filtrar datos para el primer gráfico
+datos_long_1 <- subset(datos_long, Series %in% c("Importaciones", "Exportaciones", "PIB de Argentina"))
+### Graficar el primer grupo de series
+ggplot(datos_long_1, aes(x = Index, y = Value, color = Series)) +
+  geom_line() +
+  facet_wrap(~ Series, scales = "free_y", ncol = 1) +
+  ylab("Valores en millones de pesos de 2004") + 
+  theme_minimal() +
+  theme(
+    legend.position = "none",  # Borrar la leyenda
+    axis.title.x = element_blank(),  # Borrar la leyenda del eje x
+    axis.text.x = element_text(angle = 90, hjust = 1)  # Etiquetas del eje x verticales
+  ) +
+  scale_x_date(date_labels = "%Y", date_breaks = "1 year") +  # Etiquetas del eje x para cada año
+  scale_y_continuous(labels = scales::comma) +  # Escala de números sin notación exponencial
+  facet_wrap(~ Series, scales = "free_y", ncol = 1, labeller = label_value)
+### Filtrar datos para el segundo gráfico
+datos_long_2 <- subset(datos_long, Series %in% c("PIB de socios comerciales", "Tipo de Cambio Real Multilateral"))
+### Graficar el segundo grupo de series
+ggplot(datos_long_2, aes(x = Index, y = Value, color = Series)) +
+  geom_line() +
+  facet_wrap(~ Series, scales = "free_y", ncol = 1) +
+  ylab("Números índice") + 
+  theme_minimal() +
+  theme(
+    legend.position = "none",  # Borrar la leyenda
+    axis.title.x = element_blank(),  # Borrar la leyenda del eje x
+    axis.text.x = element_text(angle = 90, hjust = 1)  # Etiquetas del eje x verticales
+  ) +
+  scale_x_date(date_labels = "%Y", date_breaks = "1 year") +  # Etiquetas del eje x para cada año
+  scale_y_continuous(labels = scales::comma) +  # Escala de números sin notación exponencial
+  facet_wrap(~ Series, scales = "free_y", ncol = 1, labeller = label_value)
+####################
+### Analisis estadistico. Test de raices unitarias (punto 1)
+####################
+### Transformar las variables a logaritmos naturales
+datos$log_IMPO <- log(datos$IMPO)
+datos$log_EXPO <- log(datos$EXPO)
+datos$log_PIBARG <- log(datos$PIBARG)
+datos$log_PIBSOCIOS <- log(datos$PIBSOCIOS)
+datos$log_TCRM <- log(datos$TCRM)
+### Prueba de Dickey-Fuller aumentada (ADF)
+adf_test <- function(series) {
+  adf.test(series, alternative = "stationary")
+}
+### Aplicar las pruebas ADF a cada serie en logaritmos
+resultados_adf <- lapply(list(datos$log_IMPO, datos$log_EXPO, datos$log_PIBARG, datos$log_PIBSOCIOS, datos$log_TCRM), adf_test)
+### Mostrar resultados de la prueba ADF
+names(resultados_adf) <- c("log_IMPO", "log_EXPO", "log_PIBARG", "log_PIBSOCIOS", "log_TCRM")
+resultados_adf
+####################
+### Analisis estadistico. Orden de integracion (punto 1)
+####################
+### Diferenciar las series y agregar NA al principio para igualar la longitud
+datos$diff_log_IMPO <- c(NA, diff(datos$log_IMPO, differences = 1))
+datos$diff_log_EXPO <- c(NA, diff(datos$log_EXPO, differences = 1))
+datos$diff_log_PIBARG <- c(NA, diff(datos$log_PIBARG, differences = 1))
+datos$diff_log_PIBSOCIOS <- c(NA, diff(datos$log_PIBSOCIOS, differences = 1))
+datos$diff_log_TCRM <- c(NA, diff(datos$log_TCRM, differences = 1))
+### Prueba de Dickey-Fuller aumentada (ADF) sobre las series diferenciadas
+adf_test <- function(series) {
+  adf.test(na.omit(series), alternative = "stationary")
+}
+### Aplicar las pruebas ADF a las series diferenciadas
+resultados_adf_diff <- lapply(list(datos$diff_log_IMPO, datos$diff_log_EXPO, datos$diff_log_PIBARG, datos$diff_log_PIBSOCIOS, datos$diff_log_TCRM), adf_test)
+### Mostrar resultados de la prueba ADF para las series diferenciadas
+names(resultados_adf_diff) <- c("diff_log_IMPO", "diff_log_EXPO", "diff_log_PIBARG", "diff_log_PIBSOCIOS", "diff_log_TCRM")
+resultados_adf_diff
+####################
+### Analisis estadistico. Estacionalidad (punto 1)
+####################
+### Convertir las series logarítmicas a objetos de tiempo (ts)
+log_IMPO_ts <- ts(datos$log_IMPO, start=c(1996, 1), frequency=4)
+log_EXPO_ts <- ts(datos$log_EXPO, start=c(1996, 1), frequency=4)
+log_PIBARG_ts <- ts(datos$log_PIBARG, start=c(1996, 1), frequency=4)
+log_PIBSOCIOS_ts <- ts(datos$log_PIBSOCIOS, start=c(1996, 1), frequency=4)
+log_TCRM_ts <- ts(datos$log_TCRM, start=c(1996, 1), frequency=4)
+### Descomponer las series
+descomp_IMPO <- decompose(log_IMPO_ts)
+descomp_EXPO <- decompose(log_EXPO_ts)
+descomp_PIBARG <- decompose(log_PIBARG_ts)
+descomp_PIBSOCIOS <- decompose(log_PIBSOCIOS_ts)
+descomp_TCRM <- decompose(log_TCRM_ts)
+### Graficar la descomposición de cada serie
+plot(descomp_IMPO)
+plot(descomp_EXPO)
+plot(descomp_PIBARG)
+plot(descomp_PIBSOCIOS)
+plot(descomp_TCRM)
+# Prueba de Kruskal-Wallis para la estacionalidad
+kruskal.test(log_IMPO_ts ~ cycle(log_IMPO_ts))
+kruskal.test(log_EXPO_ts ~ cycle(log_EXPO_ts))
+kruskal.test(log_PIBARG_ts ~ cycle(log_PIBARG_ts))
+kruskal.test(log_PIBSOCIOS_ts ~ cycle(log_PIBSOCIOS_ts))
+kruskal.test(log_TCRM_ts ~ cycle(log_TCRM_ts))
+####################
+### Cointegracion. Engle-Granger. Importaciones (punto 2)
+####################
+### Regresión de log_IMPO sobre log_PIBARG y log_TCRM
+reg_impo <- lm(log_IMPO ~ log_PIBARG + log_TCRM, data = datos)
+### Obtener los residuos de la regresión
+resid_impo <- residuals(reg_impo)
+### Realizar la prueba ADF sobre los residuos
+adf_test_resid_impo <- adf.test(resid_impo, alternative = "stationary")
+print(adf_test_resid_impo)
+####################
+### Cointegracion. Engle-Granger. Exportaciones (punto 2)
+####################
+### Regresión de log_EXPO sobre log_PIBSOCIOS y log_TCRM
+reg_expo <- lm(log_EXPO ~ log_PIBSOCIOS + log_TCRM, data = datos)
+### Obtener los residuos de la regresión
+resid_expo <- residuals(reg_expo)
+### Realizar la prueba ADF sobre los residuos
+adf_test_resid_expo <- adf.test(resid_expo, alternative = "stationary")
+print(adf_test_resid_expo)
+####################
+### Cointegracion. Johansen (punto 2)
+####################
+### Convertir las series logarítmicas a objetos de tiempo
+log_IMPO_ts <- ts(datos$log_IMPO, start = c(1996, 1), frequency = 4)
+log_EXPO_ts <- ts(datos$log_EXPO, start = c(1996, 1), frequency = 4)
+log_PIBARG_ts <- ts(datos$log_PIBARG, start = c(1996, 1), frequency = 4)
+log_PIBSOCIOS_ts <- ts(datos$log_PIBSOCIOS, start = c(1996, 1), frequency = 4)
+log_TCRM_ts <- ts(datos$log_TCRM, start = c(1996, 1), frequency = 4)
+### Agrupar las series en un solo objeto
+datos_impo <- cbind(log_IMPO_ts, log_PIBARG_ts, log_TCRM_ts)
+datos_expo <- cbind(log_EXPO_ts, log_PIBSOCIOS_ts, log_TCRM_ts)
+### Verificar cantidad de rezagos para Importaciones
+varselect_impo <- VARselect(datos_impo, lag.max = 10, type = "trend")
+print(varselect_impo)
+### Verificar cantidad de rezagos para Exportaciones
+varselect_expo <- VARselect(datos_expo, lag.max = 10, type = "trend")
+print(varselect_expo)
+### Realizar la prueba de Johansen para Importaciones
+johansen_impo <- ca.jo(datos_impo, type = "trace", ecdet = "trend", K = 6)
+summary(johansen_impo)
+### Realizar la prueba de Johansen para Exportaciones
+johansen_expo <- ca.jo(datos_expo, type = "trace", ecdet = "trend", K = 5)
+summary(johansen_expo)
+####################
+### Cointegracion. Johansen. Prueba de normalidad (punto 2)
+####################
+### Obtener los residuos del modelo de Johansen
+resid_impo <- residuals(cajorls(johansen_impo, r = 2)$rlm)
+resid_expo <- residuals(cajorls(johansen_expo, r = 1)$rlm)
+### Convertir los residuos a vectores
+resid_impo_vector <- as.vector(resid_impo)
+resid_expo_vector <- as.vector(resid_expo)
+### Prueba de normalidad de Jarque-Bera
+jarque_bera_test <- function(residuals) {
+  test <- jarque.bera.test(residuals)
+  return(list(statistic = test$statistic, p.value = test$p.value))
+}
+### Aplicar la prueba de Jarque-Bera a los residuos
+jb_test_impo <- jarque_bera_test(resid_impo_vector)
+jb_test_expo <- jarque_bera_test(resid_expo_vector)
+### Mostrar los resultados de la prueba de Jarque-Bera
+print(jb_test_impo)
+print(jb_test_expo)
+####################
+### Elasticidades. Engle Granger (punto 3)
+####################
+### Estimación inicial en niveles para Importaciones
+reg_impo <- lm(log_IMPO ~ log_PIBARG + log_TCRM, data = datos)
+summary(reg_impo)
+### Estimación inicial en niveles para Exportaciones
+reg_expo <- lm(log_EXPO ~ log_PIBSOCIOS + log_TCRM, data = datos)
+summary(reg_expo)
+### Obtener los residuos de las regresiones en niveles
+resid_impo <- residuals(reg_impo)
+resid_expo <- residuals(reg_expo)
+### Prueba ADF sobre los residuos para confirmar cointegración
+adf_test_resid_impo <- adf.test(resid_impo)
+adf_test_resid_expo <- adf.test(resid_expo)
+### Mostrar resultados de la prueba ADF
+print(adf_test_resid_impo)
+print(adf_test_resid_expo)
+### Diferenciar las series logarítmicas
+diff_log_IMPO <- diff(datos$log_IMPO)
+diff_log_PIBARG <- diff(datos$log_PIBARG)
+diff_log_TCRM <- diff(datos$log_TCRM)
+diff_log_EXPO <- diff(datos$log_EXPO)
+diff_log_PIBSOCIOS <- diff(datos$log_PIBSOCIOS)
+### Crear un dataframe con las diferencias y los residuos rezagados
+datos_diff_impo <- data.frame(diff_log_IMPO, diff_log_PIBARG, diff_log_TCRM, resid_impo_lag = lag(resid_impo, -1)[-1])
+datos_diff_expo <- data.frame(diff_log_EXPO, diff_log_PIBSOCIOS, diff_log_TCRM, resid_expo_lag = lag(resid_expo, -1)[-1])
+### Eliminar NA introducidos por el rezago
+datos_diff_impo <- na.omit(datos_diff_impo)
+datos_diff_expo <- na.omit(datos_diff_expo)
+### Estimar el ECM para Importaciones
+ecm_impo <- lm(diff_log_IMPO ~ diff_log_PIBARG + diff_log_TCRM + resid_impo_lag, data = datos_diff_impo)
+summary(ecm_impo)
+### Estimar el ECM para Exportaciones
+ecm_expo <- lm(diff_log_EXPO ~ diff_log_PIBSOCIOS + diff_log_TCRM + resid_expo_lag, data = datos_diff_expo)
+summary(ecm_expo)
+####################
+### Elasticidades. Engle Granger. Coeficientes segun Wickens y Breusch (punto 3)
+####################
+### Obtener coeficientes de largo plazo iniciales
+coef_long_impo <- coef(reg_impo)
+coef_long_expo <- coef(reg_expo)
+### Obtener coeficientes del ECM
+coef_ecm_impo <- coef(ecm_impo)
+coef_ecm_expo <- coef(ecm_expo)
+### Recalcular coeficientes del vector de cointegración
+coef_recalc_impo <- coef_long_impo / (1 - coef_ecm_impo["resid_impo_lag"])
+coef_recalc_expo <- coef_long_expo / (1 - coef_ecm_expo["resid_expo_lag"])
+### Mostrar los coeficientes recalculados
+print("Coeficientes recalculados para Importaciones:")
+print(coef_recalc_impo)
+print("Coeficientes recalculados para Exportaciones:")
+print(coef_recalc_expo)
+####################
+### Elasticidades. Metodologia VEC. Largo plazo (punto 3)
+####################
+###Realizar la Prueba de Johansen:
+datos_impo <- cbind(log_IMPO_ts, log_PIBARG_ts, log_TCRM_ts)
+datos_expo <- cbind(log_EXPO_ts, log_PIBSOCIOS_ts, log_TCRM_ts)
+### Prueba de Johansen para importaciones
+johansen_impo <- ca.jo(datos_impo, type = "trace", ecdet = "trend", K = 6)
+summary(johansen_impo)
+### Prueba de Johansen para exportaciones
+johansen_expo <- ca.jo(datos_expo, type = "trace", ecdet = "trend", K = 5)
+summary(johansen_expo)
+### Convertir los resultados de Johansen a un modelo VEC para importaciones
+vecm_impo <- cajorls(johansen_impo, r = 2)
+summary(vecm_impo)
+### Convertir los resultados de Johansen a un modelo VEC para exportaciones
+vecm_expo <- cajorls(johansen_expo, r = 1)
+summary(vecm_expo)
+### Extraer los coeficientes del vector de cointegración para importaciones
+vec_impo <- vecm_impo$beta
+print("Coeficientes del vector de cointegración para Importaciones:")
+print(vec_impo)
+### Extraer los coeficientes del vector de cointegración para exportaciones
+vec_expo <- vecm_expo$beta
+print("Coeficientes del vector de cointegración para Exportaciones:")
+print(vec_expo)
+### Residuos del modelo VEC para importaciones
+print("Resumen del modelo VEC para Importaciones:")
+summary(vecm_impo$rlm)
+### Residuos del modelo VEC para exportaciones
+print("Resumen del modelo VEC para Exportaciones:")
+summary(vecm_expo$rlm)
+### Coeficientes del modelo VEC para importaciones
+coef_short_impo <- vecm_impo$rlm$coefficients
+print("Coeficientes del modelo VEC para Importaciones (Corto Plazo):")
+print(coef_short_impo)
+### Coeficientes del modelo VEC para exportaciones
+coef_short_expo <- vecm_expo$rlm$coefficients
+print("Coeficientes del modelo VEC para Exportaciones (Corto Plazo):")
+print(coef_short_expo)
+###################
+### Elasticidades. Metodologia VEC: Verificacion del a significativdidad de los coeficientes (punto 3)
+####################
+### Realizar la prueba de Johansen
+johansen_impo <- ca.jo(datos_impo, type = "trace", ecdet = "trend", K = 6)
+summary(johansen_impo)
+johansen_expo <- ca.jo(datos_expo, type = "trace", ecdet = "trend", K = 5)
+summary(johansen_expo)
+###Extraer y Analizar los Resultados del Modelo VECM:
+vecm_impo <- cajorls(johansen_impo, r = 2)
+vecm_expo <- cajorls(johansen_expo, r = 1)
+print("Resultados del VECM para Importaciones:")
+summary(vecm_impo$rlm)
+print("Resultados del VECM para Exportaciones:")
+summary(vecm_expo$rlm)
+####################
+### Elasticidades de corto plazo (punto 4)
+####################
+### Diferenciar las series logarítmicas
+diff_log_IMPO <- diff(datos$log_IMPO)
+diff_log_PIBARG <- diff(datos$log_PIBARG)
+diff_log_TCRM <- diff(datos$log_TCRM)
+diff_log_EXPO <- diff(datos$log_EXPO)
+diff_log_PIBSOCIOS <- diff(datos$log_PIBSOCIOS)
+### Asegurarse de que todas las series diferenciadas tengan la misma longitud
+min_length <- min(length(diff_log_IMPO), length(diff_log_PIBARG), length(diff_log_TCRM),
+                  length(diff_log_EXPO), length(diff_log_PIBSOCIOS))
+diff_log_IMPO <- diff_log_IMPO[1:min_length]
+diff_log_PIBARG <- diff_log_PIBARG[1:min_length]
+diff_log_TCRM <- diff_log_TCRM[1:min_length]
+diff_log_EXPO <- diff_log_EXPO[1:min_length]
+diff_log_PIBSOCIOS <- diff_log_PIBSOCIOS[1:min_length]
+### Modelo en diferencias logarítmicas para importaciones
+datos_diff_impo <- data.frame(diff_log_IMPO, diff_log_PIBARG, diff_log_TCRM)
+datos_diff_expo <- data.frame(diff_log_EXPO, diff_log_PIBSOCIOS, diff_log_TCRM)
+### Eliminar NAs que puedan haberse introducido por las diferencias
+datos_diff_impo <- na.omit(datos_diff_impo)
+datos_diff_expo <- na.omit(datos_diff_expo)
+### Estimar el modelo en diferencias para Importaciones
+modelo_diff_impo <- lm(diff_log_IMPO ~ diff_log_PIBARG + diff_log_TCRM, data = datos_diff_impo)
+summary(modelo_diff_impo)
+### Estimar el modelo en diferencias para Exportaciones
+modelo_diff_expo <- lm(diff_log_EXPO ~ diff_log_PIBSOCIOS + diff_log_TCRM, data = datos_diff_expo)
+summary(modelo_diff_expo)
+#################### FIN ####################
+
